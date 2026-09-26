@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover lets the app draw under the notch / home-indicator
+         (and is what actually makes every env(safe-area-inset-*) non-zero on
+         iOS in standalone mode). User zoom stays enabled for WCAG AA. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a0806" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Endstep: a fast browser client for constructed, cube draft, sealed, and multiplayer pods</title>
+
+    <!-- Share-embed + SEO metadata. Endstep is a client-rendered SPA, so the
+         link-preview bots (WhatsApp, Discord, iMessage, Slack, Facebook,
+         Twitter) — which do NOT run JS — see only this static <head>. These
+         tags are what they unfurl. Copy stays trademark-light on purpose: the
+         footer carries the one WotC Fan Content Policy reference; naming the
+         mark in indexable, keyword-targeting metadata is a riskier use.
+
+         Trademark-light is NOT a licence to be vague, and conflating the two
+         cost us players. A tester trying to recruit in Discord LFG channels
+         reported the unfurl "does come off as ever so slightly crypto scam-y",
+         and the old copy earned it: a bare coined word as the headline, then
+         two content-free adjectives ("fast, modern") in front of an abstract
+         category ("online table for competitive trading-card-game play"). That
+         last phrase is visibly a euphemism, and an evasive description beside
+         a gold-on-black sigil reads as concealment rather than caution.
+
+         The fix is specificity, not the mark: concrete verbs, real nouns, no
+         hype adjectives, and details a scam would not bother inventing (the
+         rules engine, the pod size, free with nothing to install). pages/
+         formats.html was already the proof that this works — it names Momir
+         Basic, Winston, Richman and Forgetful Fish outright and reads like a
+         real product.
+
+         The title carries no category noun at all, and that is deliberate: two
+         drafts of it failed the same way. "competitive card games" (plural)
+         claims a multi-TCG platform we are not, and a generic platform is
+         precisely the shapeless thing that read as a scam. "the competitive
+         card game" (singular) fixes the accuracy and replaces the euphemism
+         with a WINK — it asserts you know which one — and a wink has the same
+         tell as an evasion. Naming the formats instead sidesteps both: it says
+         what you can actually do here, in the words players use. Keep new copy
+         concrete; do not reach for another euphemism, and do not reach for a
+         knowing one either.
+         Fenced by web/src/tests/seo-meta.test.ts. -->
+    <meta
+      name="description"
+      content="Draft a cube, build a deck, play a pod. A full rules engine runs every match: the stack, triggers, priority. Nothing to install, and matches start in seconds. Plus formats you won't find elsewhere: Winston, Richman, Momir Basic, Forgetful Fish."
+    />
+    <link rel="canonical" href="https://endstep.cc/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Endstep" />
+    <meta
+      property="og:title"
+      content="Endstep: a fast browser client for constructed, cube draft, sealed, and multiplayer pods"
+    />
+    <meta
+      property="og:description"
+      content="Draft a cube, build a deck, play a pod. A full rules engine runs every match: the stack, triggers, priority. Nothing to install, and matches start in seconds. Plus formats you won't find elsewhere: Winston, Richman, Momir Basic, Forgetful Fish."
+    />
+    <meta property="og:url" content="https://endstep.cc/" />
+    <!-- Absolute URL is mandatory: WhatsApp / Facebook reject relative og:image. -->
+    <meta property="og:image" content="https://endstep.cc/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="The Endstep sigil, a gold diamond resting on a threshold, on a dark parchment field."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Endstep: a fast browser client for constructed, cube draft, sealed, and multiplayer pods"
+    />
+    <meta
+      name="twitter:description"
+      content="Draft a cube, build a deck, play a pod. A full rules engine runs every match: the stack, triggers, priority. Nothing to install, and matches start in seconds. Plus formats you won't find elsewhere: Winston, Richman, Momir Basic, Forgetful Fish."
+    />
+    <meta name="twitter:image" content="https://endstep.cc/og-image.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Endstep",
+        "url": "https://endstep.cc/",
+        "description": "Draft a cube, build a deck, play a pod. A full rules engine runs every match: the stack, triggers, priority. Nothing to install, and matches start in seconds. Plus formats you won't find elsewhere: Winston, Richman, Momir Basic, Forgetful Fish."
+      }
+    </script>
+
+    <!-- Card art lives on the Scryfall CDN, but every <img> asks our own origin
+         first (/api/cards/image 302s to it), so the browser cannot discover the
+         host from the markup — it learns of it only when the first redirect
+         lands, and pays DNS + TLS before a single card byte arrives. Warming
+         the connection here spends that cost during boot instead.
+         Deliberately WITHOUT crossorigin: card <img> tags are not CORS
+         requests, and a crossorigin preconnect would warm the wrong socket
+         pool (unlike the gstatic hint below, where the font fetch IS CORS). -->
+    <link rel="preconnect" href="https://cards.scryfall.io" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/main-DDGrUthv.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-BYUmv01d.css">
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+  <script>window.__CF$cv$params={r:'a40fd0ac9c95be9d',t:'MTc5MDM5OTk4MQ==',u:'01a0dc27a8077755af5430b2c96bcde2',ut:'7HoAAztC3C1vQLh7UOlgK9jhlx2l1092s9h13CJKHow-1790399981-1.2.1.1-SrJJDiTc3AxnZhAlxjVgpdIi4OzCDBzv7tkWYmagvpYoRqAfyw7Uz6er1KsU8WIpHh_HojBak5CLdvCiGZFbw.2ziQH8pS_oAExAPRKOVd4',i:60};(function(){if(!document.body)return;var s=document.createElement('script');s.src='/cdn-cgi/challenge-platform/scripts/precursor/main.js';document.head.appendChild(s);})();</script></body>
+</html>
