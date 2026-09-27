@@ -3,10 +3,10 @@
 // @name:zh-CN     Endstep 简体中文卡牌浮窗
 // @name:en        Endstep Simplified Chinese Card Tooltip
 // @namespace      https://endstep.cc/
-// @version        0.3.0
-// @description     在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义
-// @description:zh-CN 在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义
-// @description:en    Show Simplified Chinese card name, type, rules text and keyword explanations on hover for endstep.cc
+// @version        0.4.0
+// @description     在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义，并把卡图替换为大学院废墟中文卡图
+// @description:zh-CN 在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义，并把卡图替换为大学院废墟中文卡图
+// @description:en    Show Simplified Chinese card name, type, rules text and keyword explanations on hover for endstep.cc, and swap card images to mtgch Chinese card images
 // @author         endstep-cn contributors
 // @license        GPL-3.0
 // @match          https://endstep.cc/*
@@ -18,8 +18,9 @@
 // @grant          GM_setValue
 // @grant          GM_xmlhttpRequest
 // @connect        mtgch.com
-// @updateURL      https://raw.githubusercontent.com/endstep-cn/endstep-cn/main/probe/endstep-cn.user.js
-// @downloadURL    https://raw.githubusercontent.com/endstep-cn/endstep-cn/main/probe/endstep-cn.user.js
+// @connect        images.mtgch.com
+// @updateURL      https://raw.githubusercontent.com/318939472/Endstep-cn/main/endstep-cn/probe/endstep-cn.user.js
+// @downloadURL    https://raw.githubusercontent.com/318939472/Endstep-cn/main/endstep-cn/probe/endstep-cn.user.js
 // ==/UserScript==
 
 /*
@@ -43,13 +44,15 @@
 
   // --- 常量 ---------------------------------------------------------------
 
-  const SCRIPT_VERSION = '0.3.0';
+  const SCRIPT_VERSION = '0.4.0';
   const MTGCH_API_BASE = 'https://mtgch.com/api/v1';
   const MTGCH_SITE = 'https://mtgch.com';
   const CACHE_KEY = 'endstep-cn-card-cache-v1';
   const SETTINGS_KEY = 'endstep-cn-settings';
   const DEBUG_KEY = 'endstep-cn-debug';
   const GLOSSARY_URL_KEY = 'endstep-cn-glossary-url';
+  const MTGCH_IMAGE_PATTERN = /^https:\/\/images\.mtgch\.com\/zhs\//i; // 仅中文卡图（英文图不含 /zhs/）
+  const IMAGE_CACHE_MAX_ENTRIES = 300; // 中文卡图（data URL）内存缓存上限
 
   const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 天
   const CACHE_MAX_ENTRIES = 600;
@@ -167,6 +170,7 @@
     keywordColor: '#8fd8c7',
     keywordSize: 11,
     uiTranslate: true,
+    cardImage: true,
     panelMode: 'follow',
     panelPosition: null,
   };
@@ -217,6 +221,11 @@
 
   function unique(values) {
     return [...new Set(values)];
+  }
+
+  // 是否为「大学院废墟」的中文卡图地址（images.mtgch.com/zhs/…）。英文图与插画裁切图都不含 /zhs/。
+  function isChineseCardImageUrl(url) {
+    return typeof url === 'string' && MTGCH_IMAGE_PATTERN.test(url);
   }
 
   function sleep(ms) {
@@ -2155,6 +2164,282 @@
       showModeToast(settings.uiTranslate ? '界面汉化已开启' : '界面汉化已关闭（已还原原文）');
     }
 
+    // --- 中文卡图（大学院废墟） ----------------------------------------------
+    // 站点 CSP 的 img-src 只允许 'self' / data: / blob: / *.scryfall.io，
+    // 直接给 <img> 填 images.mtgch.com 的地址会被浏览器拦掉，因此这里用 GM_xmlhttpRequest
+    // 取回图片二进制，转成 CSP 允许的 data: URL 再交给 <img>。
+    // 数据来源仍是识别阶段已取到的 record.image_zh，所以不会产生额外的 API 请求。
+
+    const swappedImages = new Map(); // img 元素 -> { src, srcset }（原始值，用于还原）
+    const originalToZh = new Map();  // 原始 src -> 可直接显示的 data: URL（便于重渲染后重放）
+    const imageCache = new Map();    // 中文图址 -> { status, url, promise }
+    const imageOrder = [];
+    let imageObserver = null;
+
+    function pushImageCache(key, entry) {
+      imageCache.set(key, entry);
+      imageOrder.push(key);
+      while (imageOrder.length > IMAGE_CACHE_MAX_ENTRIES) {
+        const oldest = imageOrder.shift();
+        const stale = imageCache.get(oldest);
+        // 仍在下载中的条目先留着，避免重复发起请求
+        if (stale && stale.status === 'pending') { imageOrder.push(oldest); break; }
+        imageCache.delete(oldest);
+      }
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+      }
+      return typeof root.btoa === 'function' ? root.btoa(binary) : '';
+    }
+
+    function blobToDataUrl(blob) {
+      return new Promise((resolve, reject) => {
+        try {
+          const reader = new root.FileReader();
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.onerror = () => reject(new Error('读取图片失败'));
+          reader.readAsDataURL(blob);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    function requestImageArrayBuffer(url) {
+      return new Promise((resolve, reject) => {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+          reject(new Error('当前环境不支持 GM_xmlhttpRequest'));
+          return;
+        }
+        try {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            responseType: 'arraybuffer',
+            timeout: REQUEST_TIMEOUT_MS,
+            onload: (response) => {
+              const status = response ? response.status : 0;
+              if (status < 200 || status >= 300) { reject(new Error('HTTP ' + status)); return; }
+              const buffer = response && response.response;
+              if (!buffer) { reject(new Error('空响应')); return; }
+              const base64 = arrayBufferToBase64(buffer);
+              if (!base64) { reject(new Error('无法编码图片')); return; }
+              resolve('data:image/webp;base64,' + base64);
+            },
+            onerror: () => reject(new Error('网络错误')),
+            ontimeout: () => reject(new Error('请求超时')),
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    function requestImageDataUrl(url) {
+      return new Promise((resolve, reject) => {
+        if (typeof GM_xmlhttpRequest !== 'function') {
+          reject(new Error('当前环境不支持 GM_xmlhttpRequest'));
+          return;
+        }
+        try {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url: url,
+            responseType: 'blob',
+            timeout: REQUEST_TIMEOUT_MS,
+            onload: (response) => {
+              const status = response ? response.status : 0;
+              if (status < 200 || status >= 300) { reject(new Error('HTTP ' + status)); return; }
+              const blob = response && response.response;
+              if (blob && typeof blob.size === 'number' && blob.size > 0) {
+                blobToDataUrl(blob).then(resolve, reject);
+                return;
+              }
+              // 少数管理器不支持 blob 响应，退回 arraybuffer 再自行编码
+              requestImageArrayBuffer(url).then(resolve, reject);
+            },
+            onerror: () => reject(new Error('网络错误')),
+            ontimeout: () => reject(new Error('请求超时')),
+          });
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }
+
+    function getChineseImageDataUrl(zhUrl) {
+      const cached = imageCache.get(zhUrl);
+      if (cached) return cached.promise;
+      const entry = { status: 'pending', url: null };
+      entry.promise = requestImageDataUrl(zhUrl)
+        .then((dataUrl) => {
+          if (!dataUrl || dataUrl.indexOf('data:') !== 0) throw new Error('图片格式无效');
+          entry.status = 'ready';
+          entry.url = dataUrl;
+          return dataUrl;
+        })
+        .catch(() => {
+          entry.status = 'error';
+          entry.url = null;
+          return null;
+        });
+      pushImageCache(zhUrl, entry);
+      return entry.promise;
+    }
+
+    function resolveAnchorImage(anchor) {
+      if (!anchor) return null;
+      if (String(anchor.tagName || '').toLowerCase() === 'img') return anchor;
+      if (typeof anchor.querySelector === 'function') return anchor.querySelector('img');
+      return null;
+    }
+
+    // <picture> 内的 <source> 与 <img> 自身的 srcset 优先级都高于 src，需一并让位。
+    function pictureSources(image) {
+      const parent = image && image.parentElement;
+      if (!parent || String(parent.tagName || '').toLowerCase() !== 'picture') return [];
+      if (typeof parent.querySelectorAll !== 'function') return [];
+      try { return Array.from(parent.querySelectorAll('source')); } catch (_) { return []; }
+    }
+
+    function suppressSrcset(image) {
+      for (const source of pictureSources(image)) source.removeAttribute('srcset');
+      image.removeAttribute('srcset');
+    }
+
+    function swapImage(img, originalSrc, displayUrl) {
+      if (!img || !displayUrl) return;
+      if (!swappedImages.has(img)) {
+        swappedImages.set(img, {
+          src: originalSrc,
+          srcset: img.getAttribute('srcset'),
+          sources: pictureSources(img).map((source) => ({ el: source, srcset: source.getAttribute('srcset') })),
+        });
+      }
+      try {
+        suppressSrcset(img);
+        img.setAttribute('src', displayUrl);
+        img.setAttribute('data-endstep-cn-image', '1');
+      } catch (_) { /* 忽略 */ }
+    }
+
+    function restoreCardImages() {
+      for (const [img, original] of swappedImages) {
+        try {
+          if (original.src != null) img.setAttribute('src', original.src);
+          else img.removeAttribute('src');
+          if (original.srcset != null) img.setAttribute('srcset', original.srcset);
+          for (const entry of original.sources || []) {
+            if (entry.srcset != null) entry.el.setAttribute('srcset', entry.srcset);
+          }
+          if (typeof img.removeAttribute === 'function') img.removeAttribute('data-endstep-cn-image');
+        } catch (_) { /* 元素可能已被移除 */ }
+      }
+      swappedImages.clear();
+    }
+
+    function reapplyKnownImage(img) {
+      if (settings.cardImage === false || !img || img.nodeType !== 1) return;
+      const src = img.getAttribute('src');
+      if (!src) return;
+      const dataUrl = originalToZh.get(src);
+      if (dataUrl && dataUrl !== src) { swapImage(img, src, dataUrl); return; }
+      // 已换成 data: URL 但 React 又把 srcset / <source> 补回来时，重新压制以免覆盖
+      const hasSrcset = typeof img.hasAttribute === 'function' && img.hasAttribute('srcset');
+      if (src.indexOf('data:') === 0 && (hasSrcset || pictureSources(img).length)) {
+        try { suppressSrcset(img); } catch (_) { /* 忽略 */ }
+      }
+    }
+
+    function reapplyKnownImagesIn(node) {
+      if (!node || node.nodeType !== 1) return;
+      if (String(node.tagName || '').toLowerCase() === 'img') { reapplyKnownImage(node); return; }
+      if (typeof node.querySelectorAll !== 'function') return;
+      try {
+        node.querySelectorAll('img').forEach(reapplyKnownImage);
+      } catch (_) { /* 忽略 */ }
+    }
+
+    function ensureImageObserver() {
+      const ObserverCtor = root.MutationObserver;
+      if (imageObserver || typeof ObserverCtor !== 'function') return;
+      imageObserver = new ObserverCtor((mutations) => {
+        if (settings.cardImage === false) return;
+        for (const mutation of mutations) {
+          if (mutation.type === 'attributes') {
+            reapplyKnownImage(mutation.target);
+          } else if (mutation.addedNodes) {
+            mutation.addedNodes.forEach((node) => {
+              if (node && node.nodeType === 1) reapplyKnownImagesIn(node);
+            });
+          }
+        }
+      });
+      const target = doc.documentElement || doc.body;
+      if (target) {
+        imageObserver.observe(target, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ['src', 'srcset'],
+        });
+      }
+    }
+
+    function stopImageObserver() {
+      if (!imageObserver) return;
+      try { imageObserver.disconnect(); } catch (_) { /* 忽略 */ }
+      imageObserver = null;
+    }
+
+    // 悬停识别成功后调用：把该卡的中文卡图换成大学院废墟的图（失败则静默保留原图）。
+    async function applyChineseImageFor(anchor, record) {
+      if (settings.cardImage === false) return null;
+      const img = resolveAnchorImage(anchor);
+      if (!img || swappedImages.has(img)) return null;
+      const zhUrl = str(record && record.image_zh);
+      if (!isChineseCardImageUrl(zhUrl)) return null;
+      const originalSrc = img.getAttribute('src') || '';
+      if (!originalSrc || originalSrc.indexOf('data:') === 0) return null;
+      const dataUrl = await getChineseImageDataUrl(zhUrl);
+      if (!dataUrl || settings.cardImage === false) return null;
+      if (typeof img.isConnected === 'boolean' && !img.isConnected) return null;
+      originalToZh.set(originalSrc, dataUrl);
+      swapImage(img, originalSrc, dataUrl);
+      reapplyKnownImagesIn(doc.body); // 同名卡的多份副本一并替换
+      return zhUrl;
+    }
+
+    function refreshCardImageMenu() {
+      const on = settings.cardImage !== false;
+      registerMenuCommand((on ? '☑ ' : '☐ ') + '中文卡图', toggleCardImage, 'endstep-cn-menu-image', false);
+    }
+
+    function setCardImage(nextEnabled) {
+      settings.cardImage = Boolean(nextEnabled);
+      saveSettings(settings);
+      if (settings.cardImage) {
+        ensureImageObserver();
+        reapplyKnownImagesIn(doc.body);
+      } else {
+        restoreCardImages();
+      }
+      refreshCardImageMenu();
+    }
+
+    function toggleCardImage() {
+      setCardImage(settings.cardImage === false);
+      showModeToast(settings.cardImage
+        ? '中文卡图已开启（悬停过的卡牌改用大学院废墟中文卡图）'
+        : '中文卡图已关闭（已还原原文卡图）');
+    }
+
     // --- 浮窗 ---
 
     const panel = doc.createElement('div');
@@ -2343,6 +2628,7 @@
         '汉化: ' + (uiStats && uiStats.enabled
           ? '开 · 已译 ' + uiStats.translatedTexts + ' 处'
           : '关'),
+        '中文卡图: ' + (settings.cardImage === false ? '关' : '开 · 已换 ' + swappedImages.size + ' 张'),
       ].join('\n');
     }
 
@@ -2368,6 +2654,7 @@
       panel.style.display = 'block';
       panel.style.visibility = 'hidden';
       renderCardPanel(doc, panel, record, glossary);
+      applyChineseImageFor(anchor, record);
       if (isDebugEnabled() && debug && debug.identity) {
         debugState.anchorTag = String((anchor && anchor.tagName) || '').toLowerCase();
         debugState.anchorClass = String((anchor && anchor.className) || '');
@@ -2681,6 +2968,20 @@
       uiToggleRow.appendChild(uiToggleLabel);
       dialog.appendChild(uiToggleRow);
 
+      const imgToggleRow = doc.createElement('div');
+      imgToggleRow.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+      const imgToggle = doc.createElement('input');
+      imgToggle.type = 'checkbox';
+      imgToggle.checked = settings.cardImage !== false;
+      imgToggle.style.cssText = 'width:14px;height:14px;accent-color:#d9b45b;cursor:pointer;margin:0;';
+      const imgToggleLabel = doc.createElement('label');
+      imgToggleLabel.textContent = '卡牌改用中文卡图（大学院废墟 · 悬停后替换）';
+      imgToggleLabel.style.cssText = 'font-size:12px;cursor:pointer;user-select:none;';
+      imgToggleLabel.addEventListener('click', () => { imgToggle.checked = !imgToggle.checked; });
+      imgToggleRow.appendChild(imgToggle);
+      imgToggleRow.appendChild(imgToggleLabel);
+      dialog.appendChild(imgToggleRow);
+
       function hexToRgbString(hex) {
         const clean = String(hex || '').replace('#', '');
         return [
@@ -2737,6 +3038,7 @@
         settings = Object.assign({}, SETTINGS_DEFAULTS);
         saveSettings(settings);
         applyStyleVariables(SETTINGS_DEFAULTS);
+        setCardImage(settings.cardImage);
         closeSettingsDialog();
         openSettingsDialog();
       });
@@ -2749,8 +3051,10 @@
         values.panelMode = settings.panelMode;
         values.panelPosition = settings.panelPosition;
         values.uiTranslate = Boolean(uiToggle.checked);
+        values.cardImage = Boolean(imgToggle.checked);
         settings = Object.assign({}, SETTINGS_DEFAULTS, values);
         setUiTranslation(settings.uiTranslate);
+        setCardImage(settings.cardImage);
         saveSettings(settings);
         applyStyleVariables(settings);
         closeSettingsDialog();
@@ -2812,6 +3116,7 @@
         refreshPanelModeMenu();
         refreshDebugMenu();
         refreshUiMenu();
+        refreshCardImageMenu();
         registerMenuCommand('⚙ 设置样式…', openSettingsDialog, menuIds.style);
         registerMenuCommand('🧹 清空本地缓存', clearCacheFromMenu, menuIds.cache);
       } catch (_) { /* GM 菜单不可用 */ }
@@ -2822,6 +3127,12 @@
     // 按用户设置决定是否在启动时开启界面汉化
     if (settings.uiTranslate) {
       try { uiTranslator.enable(); } catch (_) { /* 忽略 */ }
+    }
+
+    // 按用户设置启用中文卡图：监听 DOM 变化，React 重渲染后自动重放替换
+    if (settings.cardImage !== false) {
+      ensureImageObserver();
+      reapplyKnownImagesIn(doc.body);
     }
 
     // --- 事件 ---
@@ -2866,6 +3177,8 @@
     return {
       destroy: function () {
         try { uiTranslator.disable(); } catch (_) { /* 忽略 */ }
+        stopImageObserver();
+        restoreCardImages();
         doc.removeEventListener('pointerover', onPointerOver);
         if (typeof root.removeEventListener === 'function') {
           root.removeEventListener('resize', onViewportChange);
@@ -2899,6 +3212,7 @@
     normalizeName: normalizeName,
     normalizeComparable: normalizeComparable,
     splitFaces: splitFaces,
+    isChineseCardImageUrl: isChineseCardImageUrl,
     scoreSearchItem: scoreSearchItem,
     UI_TERMS: UI_TERMS,
     UI_PATTERNS: UI_PATTERNS,
