@@ -197,8 +197,8 @@
       "name_zh": "不灭",
       "desc_zh": "此永久物不会被消灭，并忽略致命伤害。"
     },
-    "infectious": {
-      "name_zh": "染毒",
+    "infect": {
+      "name_zh": "侵染",
       "desc_zh": "此生物对生物造成伤害时以 -1/-1 指示物形式，对牌手则以毒指示物形式。"
     },
     "intimidate": {
@@ -297,8 +297,8 @@
       "name_zh": "揭幕",
       "desc_zh": "若本回合有对手失去过生命，你可以支付揭幕费用来使用此牌。"
     },
-    "start your engines": {
-      "name_zh": "启动引擎",
+    "start your engines!": {
+      "name_zh": "发动引擎",
       "desc_zh": "若你没有速度，你拥有 1 点速度；之后每回合你对对手造成伤害时速度 +1（最大 4）。"
     },
     "surveil": {
