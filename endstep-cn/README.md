@@ -110,6 +110,7 @@ endstep-cn/
 
 - 中文数据来自**大学院废墟公开 API**（`https://mtgch.com/api/v1`，文档 `https://mtgch.com/api/v1/docs`）；字段优先取 `atomic_translated_*` / `full_translated_name`，其次 `zhs_*` / `printed_*`；
 - 中文卡图取自大学院废墟图床 `images.mtgch.com/zhs/…`（`view=1` 的 `image_url` 或 detail 的 `zhs_image_uris`），经 GM 抓取后转 `data:` URL 使用；
+- **术语译名**取自大学院废墟公开端点 `https://mtgch.com/api/v1/blog/get/cr/glossary`（官方《万智牌完整规则》术语表），用于对齐内置关键词词表；
 - 英文回退信息取自 Scryfall。
 
 **请求策略**：串行限速（最小间隔 220ms）、in-flight 去重、失败指数退避重试（4xx 不重试）、内存 + GM 双层缓存。
@@ -127,6 +128,9 @@ node apply-to-userscript.mjs --dry-run   # 先看会改什么
 node apply-to-userscript.mjs             # 写回脚本
 node apply-to-userscript.mjs --check     # 校验脚本与 JSON 是否一致（有差异退出码 1）
 ```
+
+> **译名已对齐官方**：关键词表与部分规则类界面词条改用大学院废墟《完整规则》术语表的官方简体中文译名。
+> 来源端点 `https://mtgch.com/api/v1/blog/get/cr/glossary`，抓取留档见 [`docs/api-research/mtgch/mtgch-cr-glossary.json`](docs/api-research/mtgch/mtgch-cr-glossary.json:1)。
 
 | 表 | 规模 | 作用 |
 |---|---|---|
@@ -146,7 +150,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 
 | 结果 | 含义 | 处理 |
 |---|---|---|
-| `ready:0.4.0` | 主脚本正常运行并完成安装 | 若仍无浮窗，看第 4 步 |
+| `ready:0.4.1` | 主脚本正常运行并完成安装 | 若仍无浮窗，看第 4 步 |
 | `loaded:…` / `no-body:…` | 已运行但安装未完成 | 查看控制台是否有 `[Endstep CN] 初始化失败:` |
 | `error:…` | 安装阶段抛错 | 冒号后即原因 |
 | `null`（未设置） | **主脚本没有运行** | 走第 2 步 |
@@ -156,7 +160,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 1. **安装不完整或未被识别**（最常见）：打开油猴面板中的该脚本，确认首行 `// ==UserScript==`、头部含 `// @match https://endstep.cc/*` 与 5 条 `// @grant`、末行 `})();`；有缺失就删除后，按[安装](#安装)章节的链接重新安装，不要手工复制源码。
 2. 确认脚本在油猴里**已启用**；并留意脚本条目上是否有报错角标。
 3. 确认当前地址被 `@match` 覆盖：本站 `endstep.cc` 与 `www.endstep.cc` 指向同一个应用，脚本已同时匹配两者；若使用其他域名（或带端口的内网/镜像地址），请自行追加一行 `@match`。
-4. 控制台应出现 `[Endstep CN] 已加载 v0.4.0，当前页面：…`。
+4. 控制台应出现 `[Endstep CN] 已加载 v0.4.1，当前页面：…`。
 
 > ⚠️ **不要用 `window.EndstepCn` 判断脚本是否运行**：带 `@grant` 的脚本运行在油猴沙箱中，它的 `window` 不是页面 `window`，页面控制台看不到 `EndstepCn` 属正常现象。请以 `<html data-endstep-cn>` 标记与 `#endstep-cn-panel` 是否存在为准。
 
@@ -172,6 +176,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 
 | 版本 | 变更 |
 |---|---|
+| 0.4.1 | 词表对齐官方：关键词译名改用大学院废墟《完整规则》术语表官方简体中文（27 条更名，如 `adapt` 由「适应」→「演化」），规则类界面词条同步（11 条）；新增官方术语表留档 [`docs/api-research/mtgch/mtgch-cr-glossary.json`](docs/api-research/mtgch/mtgch-cr-glossary.json:1) |
 | 0.4.0 | 新增「中文卡图」：悬停卡牌后把卡图替换为大学院废墟中文卡图（GM 抓图转 `data:` URL 绕过站点 CSP 的 `img-src`）；新增 `@connect images.mtgch.com`、菜单与设置开关、调试统计；React 重渲染后自动重放替换 |
 | 0.3.0 | 新增 `<html data-endstep-cn>` 运行标记（跨油猴沙箱可验证）；README 排查章节改为以标记为准 |
 | 0.2.0 | 补齐 `www.endstep.cc` 与 `*.endstep.cc` 匹配；卡牌识别增加祖先容器（3 层）与 URL 查询参数兜底；启动日志 |
@@ -189,6 +194,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 - **卡图中文化依赖中文印刷**：大学院废墟有中文版时才替换；无中文印刷、图址 404 或抓取失败时保留英文原图。**双面牌的背面、衍生物/徽记**暂不替换。
 - **中文卡图可能不是同一版**：脚本按中文优先选择版本，中文版的系列/插画/边框可能与对手当时使用的英文版不同（仅影响你本机的观感，不影响对局数据）。
 - **卡图经内存缓存**：中文卡图以 `data:` URL 缓存在内存（上限 300 张），刷新页面即释放。
+- **词表译名以官方为准**：关键词与规则类界面词条采用大学院废墟官方术语表译名，可能与常见民间译法不同（如 `Adapt` = 演化、`Wither` = 干枯、`Shadow` = 次元幽影）；界面按钮/菜单等非规则措辞仍按界面语境翻译。
 
 ---
 

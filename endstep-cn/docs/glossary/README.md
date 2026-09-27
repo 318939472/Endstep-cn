@@ -65,6 +65,25 @@ node apply-to-userscript.mjs --check
 
 适合小范围试译；正式发布仍建议走「改 JSON → 写回脚本」，这样离线也有中文。
 
+## 与官方术语表对齐（大学院废墟）
+
+大学院废墟的《万智牌完整规则》术语表由**公开只读端点**提供，无需登录：
+
+```bash
+curl -s "https://mtgch.com/api/v1/blog/get/cr/glossary" -o cr-glossary.json
+```
+
+返回 `{page_type, data}`；`data.body_html` 是 240 KB 左右的 HTML，内含 700+ 条形如
+`<h3><span id='英文'>英文</span> / <span id='中文'>中文</span></h3>` 的词条，即「英文术语 → 官方简体中文」。
+本项目据此对齐（离线同步一次，脚本运行时不调用该端点）：
+
+- **关键词词表** → `BUILTIN_GLOSSARY`：英文键命中官方时，`name_zh` 一律改为官方译名，
+  并同步替换该条 `desc_zh` 内出现的旧称。官方用于消歧的**尾部括注会被去掉**（如「循环（异能）」→「循环」）。
+- **界面词表** → `UI_TERMS`：仅对**规则类**词条采用官方译名；若旧译出现在其它词条的值中（改会造成前后不一致）则保持不变。
+- 抓取留档：[`mtgch-cr-glossary.json`](../api-research/mtgch/mtgch-cr-glossary.json:1)（英文 → 官方中文的紧凑映射，含 `_endpoint` 与 `_fetched_at`）。
+
+> 官方术语表面向**规则文本**，不要直接套用到界面按钮、菜单等非规则措辞上。
+
 ## 维护建议
 
 - 优先添加**整串**词条（覆盖按钮/标签）；只有确认安全时才加入会参与「逐词组合」的通用词，避免误译。

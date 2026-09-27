@@ -17,6 +17,7 @@
 | GET | `/api/v1/card/{card_id}/` | 通过 UUID 取卡牌完整数据（主路径） | `fetchCardDetail` → `normalizeDetail` |
 | GET | `/api/v1/card/{set}/{collector_number}/` | 通过「系列 + 编号」取卡（备用路径） | `fetchCardBySetCollector` |
 | GET | `/api/v1/result?q=…` | 按英文名搜索（名称路径） | `resolveByName` → `normalizeSearchItem` |
+| GET | `/api/v1/blog/get/{path}` | 取「博客/文章」内容；`path=cr/glossary` 即**官方《完整规则》术语表**（英文 → 官方简体中文） | 词表对齐（离线同步，脚本运行时不调用） |
 
 确认存在但脚本未使用的公开端点：`/autocomplete/`、`/sets/`、`/set/{set_code}/cards/`、`/versions/{card_id}/`、`/random`、`/card/next`、`/card/prev`。
 
@@ -135,6 +136,7 @@ OpenAPI 中这些端点标注 `security: JWTAuth`（登录后才可用）。脚�
 | `mtgch-blossom.json` | `q=Blossoming Sands`（同上参数）——单结果示例 | 同上，替换 `q` |
 | `mtgch-bolt-uuid.json` | `GET /card/f58dba4f-…/` ——detail，演示 `atomic_translated_*` / `zhs_*` / `keywords` | `curl -s "https://mtgch.com/api/v1/card/f58dba4f-1abb-47a3-a684-29c32bab95c0/" -o mtgch-bolt-uuid.json` |
 | `mtgch-card-by-uuid.json` | `GET /card/91fdb56b-…/` ——detail，完整字段清单（Sol Ring） | `curl -s "https://mtgch.com/api/v1/card/91fdb56b-54d5-4272-8319-505ff987fe9b/" -o mtgch-card-by-uuid.json` |
+| `mtgch-cr-glossary.json` | 官方术语表紧凑映射：`terms`（英文 → 官方中文，736 条） | `curl -s "https://mtgch.com/api/v1/blog/get/cr/glossary"`，取 `data.body_html` 解析出 `<h3>` 词条 |
 
 > 终端若显示中文乱码，多为控制台代码页问题（内容本身是 UTF-8）；请用编辑器或 `read_file` 查看。
 
