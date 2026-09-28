@@ -3,7 +3,7 @@
 // @name:zh-CN     Endstep 简体中文卡牌浮窗
 // @name:en        Endstep Simplified Chinese Card Tooltip
 // @namespace      https://endstep.cc/
-// @version        0.4.1
+// @version        0.4.2
 // @description     在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义，并把卡图替换为大学院废墟中文卡图
 // @description:zh-CN 在 endstep.cc 悬停卡牌时显示简体中文卡名、类别、规则文本与关键词释义，并把卡图替换为大学院废墟中文卡图
 // @description:en    Show Simplified Chinese card name, type, rules text and keyword explanations on hover for endstep.cc, and swap card images to mtgch Chinese card images
@@ -44,7 +44,7 @@
 
   // --- 常量 ---------------------------------------------------------------
 
-  const SCRIPT_VERSION = '0.4.1';
+  const SCRIPT_VERSION = '0.4.2';
   const MTGCH_API_BASE = 'https://mtgch.com/api/v1';
   const MTGCH_SITE = 'https://mtgch.com';
   const CACHE_KEY = 'endstep-cn-card-cache-v1';
@@ -1526,7 +1526,7 @@
     'phase': '阶段',
     'step': '步骤',
     'take mulligan': '再调度',
-    'concede game': '认输',
+    'concede game': '认输本局',
     'poison': '毒',
     'ticket': '票券',
     'tickets': '票券',
@@ -1537,6 +1537,136 @@
     'you have priority': '你有优先权',
     'opponent is thinking': '对手思考中',
     'premodern': '前摩登',
+
+    // 游戏内菜单 / 面板（整串匹配与补充词汇）
+    'show the macro panel': '显示宏面板',
+    'record a macro': '录制宏',
+    'macro recorder': '宏录制器',
+    'close macro recorder': '关闭宏录制器',
+    'expand macro recorder': '展开宏录制器',
+    'minimize macro recorder': '最小化宏录制器',
+    'macro recording': '宏录制中',
+    'macro running': '宏运行中',
+    'macro ready': '宏已就绪',
+    'macro discarded': '宏已丢弃',
+    'preview macros': '预览宏',
+    'release macros': '释放宏',
+    'show decklist': '显示牌表',
+    'show your hand': '显示你的手牌',
+    'show prompt': '显示提示',
+    'show castable cards only': '仅显示可使用的牌',
+    'keyboard shortcuts': '键盘快捷键',
+    'pass priority shortcuts': '让过优先权快捷键',
+    'no shortcuts are starred': '尚无标星快捷键',
+    'concede match': '认输比赛',
+    'concede and continue': '认输并继续',
+    'report a problem': '报告问题',
+    'report stalling': '举报拖延',
+    'open cheats panel': '打开作弊面板',
+    'close cheats panel': '关闭作弊面板',
+    'sandbox cheats': '沙盒作弊',
+    'cheats on': '作弊已开',
+    'cheats off': '作弊已关',
+    'auto-yield': '自动让过',
+    'auto-yields': '自动让过',
+    'auto-yield options': '自动让过选项',
+    'close auto-yields': '关闭自动让过',
+    'disable auto-yields': '停用自动让过',
+    'forget auto-yield': '不再自动让过',
+    'toggle all auto-yields': '切换全部自动让过',
+    'undo last action': '撤销上一步操作',
+    'move to decision panel': '移至决策面板',
+    'loop shortcut': '循环快捷键',
+    'reload': '重新载入',
+    'show all': '全部显示',
+    'show only': '仅显示',
+    'show': '显示',
+    'open': '打开',
+    'toggle': '切换',
+    'macro': '宏',
+    'macros': '宏',
+    'panel': '面板',
+    'recorder': '录制器',
+    'decklist': '牌表',
+    'prompt': '提示',
+    'cheats': '作弊',
+    'shortcut': '快捷键',
+    'shortcuts': '快捷键',
+    'stalling': '拖延',
+
+    // 牌组 / 牌组库（整串匹配与补充词汇）
+    'choose deck format': '选择牌组赛制',
+    'legal in': '合法于',
+    'checking…': '检查中…',
+    'commander name': '指挥官名称',
+    'type a commander name…': '输入指挥官名称…',
+    'throne empty': '王座空置',
+    'or drag a card here': '或将牌拖到这里',
+    'change art': '更换插画',
+    'checking commander legality…': '正在检查指挥官合法性…',
+    'legal in commander': '在指挥官赛中合法',
+    'card list': '牌表',
+    'fix unresolved card': '修复未解析的牌',
+    'search for a card…': '搜索一张牌…',
+    'import from link': '从链接导入',
+    'import from cube cobra': '从 Cube Cobra 导入',
+    'cube cobra url or id': 'Cube Cobra 链接或 ID',
+    'deck url': '牌组链接',
+    'export → plain text': '导出 → 纯文本',
+    'paste instead': '改为粘贴',
+    'import and replace': '导入并替换',
+    'importing…': '导入中…',
+    'import failed': '导入失败',
+    'one card per line. format:': '每行一张牌，格式：',
+    'add a blank line and the word': '空一行并写上',
+    'download this deck as an importable card list': '将此牌组下载为可导入的牌表',
+    'imported from': '导入自',
+    'importing discards the': '导入会丢弃',
+    'paste a cube list': '粘贴轮抽盒列表',
+    'paste a card list': '粘贴牌表',
+    'new deck': '新建牌组',
+    'try again': '重试',
+    'all decks': '全部牌组',
+    '← all cubes': '← 全部轮抽盒',
+    'new cube': '新建轮抽盒',
+    'start a new cube': '新建一个轮抽盒',
+    'set preferred printing': '设定偏好版本',
+    'remove preference': '移除偏好',
+    'set as commander': '设为指挥官',
+    'edit as text': '以文本编辑',
+    'filter cards': '筛选牌',
+    'filter this list…': '筛选此列表…',
+    'open in editor': '在编辑器中打开',
+    'move to…': '移动到…',
+    'set format…': '设定赛制…',
+    'no format': '无赛制',
+    'delete deck': '删除牌组',
+    'library root': '牌组库根目录',
+    'nowhere to move': '无处可移动',
+    'top level': '顶层',
+    'new subfolder': '新建子文件夹',
+    'delete folder': '删除文件夹',
+    'your decks': '你的牌组',
+    'gathering your library…': '正在整理牌组库…',
+    'copy decklist': '复制牌表',
+    'plain text': '纯文本',
+    'no decklist': '无牌表',
+    'paste a list': '粘贴列表',
+    'or import a draft deck': '或导入轮抽牌组',
+    'mainboard': '主牌',
+    'companion': '行侣',
+    'subfolder': '子文件夹',
+    'preferred': '偏好',
+    'legal': '合法',
+    'throne': '王座',
+    'cmc': '法术力',
+    'duel-commander': '法禁',
+    'leaderboard': '排行榜',
+    'more': '更多',
+    'forgetful fish': '巨鱼丹丹',
+    'freeplay': '自由对局',
+    'momir basic': '莫密维',
+    'tournaments': '赛事',
   };
 
   const UI_PATTERNS = [
@@ -3173,6 +3303,7 @@
       root.addEventListener('resize', onViewportChange);
       root.addEventListener('scroll', onViewportChange, true);
     }
+
 
     return {
       destroy: function () {

@@ -58,6 +58,8 @@ endstep-cn/
   3. **全词可译的短组合**：`Move to Library` → `移动至牌库`。
 - **不会**翻译：含中文的文本、超过 60 字的文本、以句末标点结尾的完整句子，以及任何含未知英文词的串（例如卡名 `Giant Growth`）。
 - **跳过**：`script/style/code/pre`、表单控件内部文本、`contenteditable`、聊天与玩家名/牌组名区域、浮窗自身，以及带卡图的卡牌元素（保护卡名与 `alt`，避免破坏卡牌识别）。
+- **游戏内菜单逐条整串翻译**：对局面板/菜单文案单独登记为整串词条，不依赖逐词组合，例如 `Show the macro panel` → `显示宏面板`、`Record a macro` → `录制宏`、`Open cheats panel` → `打开作弊面板`、`Auto-yields` → `自动让过`、`Concede match` → `认输比赛`。
+- **牌组界面词条**：牌组的新建/导入/导出、牌组库与筛选等文案已整串登记（如 `Import from link` → `从链接导入`、`Set as commander` → `设为指挥官`、`Gathering your library…` → `正在整理牌组库…`）。
 - 界面重渲染（React）覆写文案后会自动重新应用；关闭开关时逐字还原。
 
 ### 中文卡图
@@ -135,7 +137,7 @@ node apply-to-userscript.mjs --check     # 校验脚本与 JSON 是否一致（�
 | 表 | 规模 | 作用 |
 |---|---|---|
 | `BUILTIN_GLOSSARY` | 82 条 | 关键词释义（`First strike` → 先攻 + 说明） |
-| `UI_TERMS` | 364 条 | 界面词条（整串 / 组合匹配） |
+| `UI_TERMS` | 491 条 | 界面词条（整串 / 组合匹配；含游戏内菜单/面板、牌组界面整串） |
 | `UI_PATTERNS` | 17 条 | 界面动态模式（正则 + 替换） |
 
 ---
@@ -150,7 +152,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 
 | 结果 | 含义 | 处理 |
 |---|---|---|
-| `ready:0.4.1` | 主脚本正常运行并完成安装 | 若仍无浮窗，看第 4 步 |
+| `ready:0.4.2` | 主脚本正常运行并完成安装 | 若仍无浮窗，看第 4 步 |
 | `loaded:…` / `no-body:…` | 已运行但安装未完成 | 查看控制台是否有 `[Endstep CN] 初始化失败:` |
 | `error:…` | 安装阶段抛错 | 冒号后即原因 |
 | `null`（未设置） | **主脚本没有运行** | 走第 2 步 |
@@ -160,7 +162,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 1. **安装不完整或未被识别**（最常见）：打开油猴面板中的该脚本，确认首行 `// ==UserScript==`、头部含 `// @match https://endstep.cc/*` 与 5 条 `// @grant`、末行 `})();`；有缺失就删除后，按[安装](#安装)章节的链接重新安装，不要手工复制源码。
 2. 确认脚本在油猴里**已启用**；并留意脚本条目上是否有报错角标。
 3. 确认当前地址被 `@match` 覆盖：本站 `endstep.cc` 与 `www.endstep.cc` 指向同一个应用，脚本已同时匹配两者；若使用其他域名（或带端口的内网/镜像地址），请自行追加一行 `@match`。
-4. 控制台应出现 `[Endstep CN] 已加载 v0.4.1，当前页面：…`。
+4. 控制台应出现 `[Endstep CN] 已加载 v0.4.2，当前页面：…`。
 
 > ⚠️ **不要用 `window.EndstepCn` 判断脚本是否运行**：带 `@grant` 的脚本运行在油猴沙箱中，它的 `window` 不是页面 `window`，页面控制台看不到 `EndstepCn` 属正常现象。请以 `<html data-endstep-cn>` 标记与 `#endstep-cn-panel` 是否存在为准。
 
@@ -176,6 +178,7 @@ document.documentElement.getAttribute('data-endstep-cn')
 
 | 版本 | 变更 |
 |---|---|
+| 0.4.2 | 游戏内菜单与牌组界面词条：对局面板/菜单 42 条整串 + 13 条词汇；牌组/牌组库 58 条整串 + 6 条词汇（`Import from link` → 从链接导入、`Set as commander` → 设为指挥官 等）。界面词条 364 → 491 条 |
 | 0.4.1 | 词表对齐官方：关键词译名改用大学院废墟《完整规则》术语表官方简体中文（27 条更名，如 `adapt` 由「适应」→「演化」），规则类界面词条同步（11 条）；新增官方术语表留档 [`docs/api-research/mtgch/mtgch-cr-glossary.json`](docs/api-research/mtgch/mtgch-cr-glossary.json:1) |
 | 0.4.0 | 新增「中文卡图」：悬停卡牌后把卡图替换为大学院废墟中文卡图（GM 抓图转 `data:` URL 绕过站点 CSP 的 `img-src`）；新增 `@connect images.mtgch.com`、菜单与设置开关、调试统计；React 重渲染后自动重放替换 |
 | 0.3.0 | 新增 `<html data-endstep-cn>` 运行标记（跨油猴沙箱可验证）；README 排查章节改为以标记为准 |
